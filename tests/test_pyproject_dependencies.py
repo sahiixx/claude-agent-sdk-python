@@ -19,12 +19,25 @@ class TestPyprojectDependencies:
 
     @pytest.fixture
     def pyproject_path(self) -> Path:
-        """Return path to pyproject.toml."""
+        """
+        Get the filesystem path to the project's pyproject.toml file.
+        
+        Returns:
+            path (Path): Path to the pyproject.toml file located two levels above this test file.
+        """
         return Path(__file__).parent.parent / "pyproject.toml"
 
     @pytest.fixture
     def pyproject_content(self, pyproject_path: Path) -> str:
-        """Load pyproject.toml content."""
+        """
+        Read and return the contents of the pyproject.toml file.
+        
+        Parameters:
+            pyproject_path (Path): Path to the pyproject.toml file.
+        
+        Returns:
+            str: The contents of the file.
+        """
         return pyproject_path.read_text()
 
     def test_pyproject_file_exists(self, pyproject_path: Path) -> None:
@@ -33,7 +46,14 @@ class TestPyprojectDependencies:
         assert pyproject_path.is_file(), "pyproject.toml is not a file"
 
     def test_pyproject_is_valid_toml(self, pyproject_content: str) -> None:
-        """Test that pyproject.toml is valid TOML syntax."""
+        """
+        Validate that the provided pyproject.toml content is syntactically and structurally valid.
+        
+        Uses tomllib to parse on Python 3.11 and newer; on older Python versions performs basic structural checks for the presence of a [project] table and a dependencies key.
+        
+        Parameters:
+            pyproject_content (str): Contents of pyproject.toml to validate.
+        """
         try:
             if sys.version_info >= (3, 11):
                 import tomllib
@@ -47,7 +67,15 @@ class TestPyprojectDependencies:
             pytest.fail(f"pyproject.toml contains invalid TOML syntax: {e}")
 
     def test_requests_dependency_present(self, pyproject_content: str) -> None:
-        """Test that requests dependency is declared."""
+        """
+        Verify that pyproject.toml declares the "requests" dependency and specifies a `>=` version constraint.
+        
+        Parameters:
+            pyproject_content (str): The full contents of pyproject.toml.
+        
+        Raises:
+            AssertionError: If "requests" is not present or does not include a `>=` version constraint (e.g., `requests>=2.25`).
+        """
         assert "requests" in pyproject_content, "requests dependency not found"
         # Check for proper version constraint
         pattern = r'requests>=[\d.]+'
@@ -64,7 +92,11 @@ class TestPyprojectDependencies:
             "beautifulsoup4 dependency missing version constraint"
 
     def test_requests_version_constraint(self, pyproject_content: str) -> None:
-        """Test that requests has a valid version constraint."""
+        """
+        Verify pyproject.toml declares a `requests` dependency with an acceptable minimum version.
+        
+        Searches for a `requests>=MAJOR.MINOR[.PATCH...]` constraint, requires at least a numeric major and minor, enforces `major >= 2`, and if `major == 2` enforces `minor >= 25`.
+        """
         match = re.search(r'requests>=([\d.]+)', pyproject_content)
         assert match is not None, "requests version constraint not found"
         
@@ -132,7 +164,12 @@ class TestPyprojectDependencies:
             "beautifulsoup4 dependency format is invalid"
 
     def test_no_duplicate_dependencies(self, pyproject_content: str) -> None:
-        """Test that each dependency is declared only once."""
+        """
+        Ensure `requests` and `beautifulsoup4` each appear exactly once in the provided pyproject.toml content.
+        
+        Parameters:
+            pyproject_content (str): The full text content of pyproject.toml to inspect.
+        """
         # Count occurrences of each dependency
         requests_count = len(re.findall(r'"requests[>=<]', pyproject_content))
         bs4_count = len(re.findall(r'"beautifulsoup4[>=<]', pyproject_content))
@@ -143,7 +180,12 @@ class TestPyprojectDependencies:
             f"beautifulsoup4 declared {bs4_count} times (should be 1)"
 
     def test_dependencies_in_correct_section(self, pyproject_content: str) -> None:
-        """Test that dependencies are in [project] section, not [project.optional-dependencies]."""
+        """
+        Ensure requests and beautifulsoup4 are declared in the project's main [project] dependencies section rather than in optional dependency groups.
+        
+        Parameters:
+            pyproject_content (str): The full contents of pyproject.toml to inspect for dependency declarations.
+        """
         # Find the main dependencies section
         main_deps_match = re.search(
             r'\[project\].*?dependencies\s*=\s*\[(.*?)\]',
@@ -220,7 +262,11 @@ class TestDependencyCompatibility:
             pytest.skip("requests not installed yet")
 
     def test_beautifulsoup4_version_sufficient(self) -> None:
-        """Test that installed beautifulsoup4 version meets minimum requirement."""
+        """
+        Verify the installed beautifulsoup4 package meets the minimum required version 4.9.0.
+        
+        Skips the test if beautifulsoup4 is not installed.
+        """
         try:
             import bs4
             version = bs4.__version__
@@ -242,6 +288,14 @@ class TestDependencyCompatibility:
             # Create a mock response to test compatibility
             class MockResponse:
                 def __init__(self) -> None:
+                    """
+                    Initialize a simple mock HTTP response with default HTML content.
+                    
+                    Creates three instance attributes:
+                    - `text`: a UTF-8 string containing a small HTML document.
+                    - `content`: the UTF-8 encoded bytes of `text`.
+                    - `status_code`: the HTTP status code (200).
+                    """
                     self.text = "<html><body><h1>Test</h1></body></html>"
                     self.content = self.text.encode('utf-8')
                     self.status_code = 200
@@ -275,7 +329,9 @@ class TestDependencyUseCases:
             pytest.skip("requests not installed yet")
 
     def test_requests_session_support(self) -> None:
-        """Test that requests Session is available for connection pooling."""
+        """
+        Verify that a requests.Session can be created and exposes common attributes used for connection pooling (`get`, `post`, `headers`, `cookies`). The test is skipped if the `requests` package is not installed.
+        """
         try:
             import requests
             
@@ -405,7 +461,11 @@ class TestDependencySecurityAndBestPractices:
             pytest.skip("requests not installed yet")
 
     def test_dependency_documentation_urls(self) -> None:
-        """Test that we can construct documentation URLs for the dependencies."""
+        """
+        Ensure dependency documentation URLs use HTTPS.
+        
+        Asserts that the known documentation URLs for requests and BeautifulSoup begin with "https://".
+        """
         # These are the official documentation sites
         requests_docs = "https://requests.readthedocs.io/"
         bs4_docs = "https://www.crummy.com/software/BeautifulSoup/bs4/doc/"
@@ -502,7 +562,11 @@ class TestDependencyIntegrationReadiness:
             pytest.skip("dependencies not installed yet")
 
     def test_requests_timeout_support(self) -> None:
-        """Test that requests supports timeout configuration."""
+        """
+        Verify that requests exposes a timeout parameter on its HTTP methods.
+        
+        Checks that the callable signatures of `requests.get` and `requests.post` include a `timeout` parameter; skips the test if the `requests` package is not installed.
+        """
         try:
             import requests
             
@@ -519,7 +583,11 @@ class TestDependencyIntegrationReadiness:
             pytest.skip("requests not installed yet")
 
     def test_beautifulsoup_encoding_handling(self) -> None:
-        """Test that beautifulsoup4 handles different encodings."""
+        """
+        Verify BeautifulSoup preserves Unicode characters when parsing UTF-8 HTML.
+        
+        Skips the test if beautifulsoup4 is not installed.
+        """
         try:
             from bs4 import BeautifulSoup
             
